@@ -507,11 +507,140 @@ Dispatch Semaphore 在实际开发中主要用于：
 
 ######  6.2.1 非线程安全（不使用 semaphore）
 
+先来看看不考虑线程安全的代码：
 
+```objc
+/**
+ * 非线程安全：不使用 semaphore
+ * 初始化火车票数量、卖票窗口（非线程安全）、并开始卖票
+ */
+- (void)initTicketStatusNotSave {
+    NSLog(@"currentThread---%@",[NSThread currentThread]);  // 打印当前线程
+    NSLog(@"semaphore---begin");
+    
+    self.ticketSurplusCount = 50;
+    
+    // queue1 代表北京火车票售卖窗口
+    dispatch_queue_t queue1 = dispatch_queue_create("net.bujige.testQueue1", DISPATCH_QUEUE_SERIAL);
+    // queue2 代表上海火车票售卖窗口
+    dispatch_queue_t queue2 = dispatch_queue_create("net.bujige.testQueue2", DISPATCH_QUEUE_SERIAL);
+    
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(queue1, ^{
+        [weakSelf saleTicketNotSafe];
+    });
+    
+    dispatch_async(queue2, ^{
+        [weakSelf saleTicketNotSafe];
+    });
+}
+
+/**
+ * 售卖火车票（非线程安全）
+ */
+- (void)saleTicketNotSafe {
+    while (1) {
+        
+        if (self.ticketSurplusCount > 0) {  // 如果还有票，继续售卖
+            self.ticketSurplusCount--;
+            NSLog(@"%@", [NSString stringWithFormat:@"剩余票数：%d 窗口：%@", self.ticketSurplusCount, [NSThread currentThread]]);
+            [NSThread sleepForTimeInterval:0.2];
+        } else { // 如果已卖完，关闭售票窗口
+            NSLog(@"所有火车票均已售完");
+            break;
+        }
+        
+    }
+}
+```
+
+> 输出结果（部分）：
+>  2019-08-08 15:21:39.772655+0800 YSC-GCD-demo[18071:4340555] currentThread---<NSThread: 0x6000015a2f40>{number = 1, name = main}
+>  2019-08-08 15:21:39.772790+0800 YSC-GCD-demo[18071:4340555] semaphore---begin
+>  2019-08-08 15:21:39.773101+0800 YSC-GCD-demo[18071:4340604] 剩余票数：48 窗口：<NSThread: 0x6000015cc600>{number = 4, name = (null)}
+>  2019-08-08 15:21:39.773115+0800 YSC-GCD-demo[18071:4340605] 剩余票数：49 窗口：<NSThread: 0x6000015f8600>{number = 3, name = (null)}
+>  2019-08-08 15:21:39.975041+0800 YSC-GCD-demo[18071:4340605] 剩余票数：47 窗口：<NSThread: 0x6000015f8600>{number = 3, name = (null)}
+>  2019-08-08 15:21:39.975037+0800 YSC-GCD-demo[18071:4340604] 剩余票数：47 窗口：<NSThread: 0x6000015cc600>{number = 4, name = (null)}
+>  2019-08-08 15:21:40.176567+0800 YSC-GCD-demo[18071:4340604] 剩余票数：46 窗口：<NSThread: 0x6000015cc600>{number = 4, name = (null)}
+>  ...
+
+可以看到在不考虑线程安全，不使用 semaphore 的情况下，得到票数是错乱的，这样显然不符合我们的需求，所以我们需要考虑线程安全问题。
 
 ###### 6.2.2 线程安全（使用 semaphore 加锁）
 
+考虑线程安全的代码：
 
+
+
+```objc
+/**
+ * 线程安全：使用 semaphore 加锁
+ * 初始化火车票数量、卖票窗口（线程安全）、并开始卖票
+ */
+- (void)initTicketStatusSave {
+    NSLog(@"currentThread---%@",[NSThread currentThread]);  // 打印当前线程
+    NSLog(@"semaphore---begin");
+    
+    semaphoreLock = dispatch_semaphore_create(1);
+    
+    self.ticketSurplusCount = 50;
+    
+    // queue1 代表北京火车票售卖窗口
+    dispatch_queue_t queue1 = dispatch_queue_create("net.bujige.testQueue1", DISPATCH_QUEUE_SERIAL);
+    // queue2 代表上海火车票售卖窗口
+    dispatch_queue_t queue2 = dispatch_queue_create("net.bujige.testQueue2", DISPATCH_QUEUE_SERIAL);
+    
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(queue1, ^{
+        [weakSelf saleTicketSafe];
+    });
+    
+    dispatch_async(queue2, ^{
+        [weakSelf saleTicketSafe];
+    });
+}
+
+/**
+ * 售卖火车票（线程安全）
+ */
+- (void)saleTicketSafe {
+    while (1) {
+        // 相当于加锁
+        dispatch_semaphore_wait(semaphoreLock, DISPATCH_TIME_FOREVER);
+        
+        if (self.ticketSurplusCount > 0) {  // 如果还有票，继续售卖
+            self.ticketSurplusCount--;
+            NSLog(@"%@", [NSString stringWithFormat:@"剩余票数：%d 窗口：%@", self.ticketSurplusCount, [NSThread currentThread]]);
+            [NSThread sleepForTimeInterval:0.2];
+        } else { // 如果已卖完，关闭售票窗口
+            NSLog(@"所有火车票均已售完");
+            
+            // 相当于解锁
+            dispatch_semaphore_signal(semaphoreLock);
+            break;
+        }
+        
+        // 相当于解锁
+        dispatch_semaphore_signal(semaphoreLock);
+    }
+}
+```
+
+> 输出结果为：
+>  2019-08-08 15:23:58.819891+0800 YSC-GCD-demo[18116:4348091] currentThread---<NSThread: 0x600000681380>{number = 1, name = main}
+>  2019-08-08 15:23:58.820041+0800 YSC-GCD-demo[18116:4348091] semaphore---begin
+>  2019-08-08 15:23:58.820305+0800 YSC-GCD-demo[18116:4348159] 剩余票数：49 窗口：<NSThread: 0x6000006ede80>{number = 3, name = (null)}
+>  2019-08-08 15:23:59.022165+0800 YSC-GCD-demo[18116:4348157] 剩余票数：48 窗口：<NSThread: 0x6000006e4b40>{number = 4, name = (null)}
+>  2019-08-08 15:23:59.225299+0800 YSC-GCD-demo[18116:4348159] 剩余票数：47 窗口：<NSThread: 0x6000006ede80>{number = 3, name = (null)}
+>  ...
+>  2019-08-08 15:24:08.355977+0800 YSC-GCD-demo[18116:4348157] 剩余票数：2 窗口：<NSThread: 0x6000006e4b40>{number = 4, name = (null)}
+>  2019-08-08 15:24:08.559201+0800 YSC-GCD-demo[18116:4348159] 剩余票数：1 窗口：<NSThread: 0x6000006ede80>{number = 3, name = (null)}
+>  2019-08-08 15:24:08.759630+0800 YSC-GCD-demo[18116:4348157] 剩余票数：0 窗口：<NSThread: 0x6000006e4b40>{number = 4, name = (null)}
+>  2019-08-08 15:24:08.965100+0800 YSC-GCD-demo[18116:4348159] 所有火车票均已售完
+>  2019-08-08 15:24:08.965440+0800 YSC-GCD-demo[18116:4348157] 所有火车票均已售完
+
+可以看出，在考虑了线程安全的情况下，使用 `dispatch_semaphore`
+ 机制之后，得到的票数是正确的，没有出现混乱的情况。我们也就解决了多个线程同步的问题。
 
 ### 引用相关
 
