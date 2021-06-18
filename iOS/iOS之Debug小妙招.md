@@ -12,9 +12,9 @@ Memory Graph是将运行时将内存中的对象生成分布表，可以快速�
 
 但是项目简单还好说，复杂的项目中琳琅满目的内存真是让人眼花缭乱，无法很快查出泄漏问题。
 
-**我的做法是设置一个重置小开关，将keyWindow的rootViewController设置为一个 UIViewController，此时在内存中存在的除了Appdelegate、SceneDelegate(iOS13 later)、以及单例对象外，其他的都是异常内存。**
+**我的做法是设置一个重置小开关，将keyWindow的rootViewController设置为一个空的 UIViewController，此时在内存中存在的除了Appdelegate、SceneDelegate(iOS13 later)、以及单例对象外，其他的都是异常内存。**
 
-那如何快速定位问题所在呢？
+上栗子！
 
 ![](../img/ios/debug/image_2.png)
 
