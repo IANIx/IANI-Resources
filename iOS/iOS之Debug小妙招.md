@@ -4,7 +4,7 @@
 
 在日常工作开发中，除了coding外，大部分时间还是在debug上。除了关键节点log外，Xcode还有很多强大的debug工具：断点、lldb、instrument、Analyze等等。最令开发者头疼的问题莫过于内存泄漏了，今天来教一个又快速又简单的查找项目中问题代码的小妙招，只需要借助memory graph即可。
 
-Memory Graph是将运行时将内存中的对象生成分布表，可以快速帮助我们定位引用循环问题。
+Memory Graph是将运行时将内存中的对象生成分布表，可以快速帮助我们定位循环引用问题。
 
 ![如图](../img/ios/debug/image_1.png)
 
