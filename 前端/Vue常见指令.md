@@ -18,7 +18,7 @@
 
 5.`v-show,v-if` : 控制显隐
 
-6.`v-modal` :  [表单](https://so.csdn.net/so/search?q=表单&spm=1001.2101.3001.7020)元素的双向绑定
+6.`v-model` :  [表单](https://so.csdn.net/so/search?q=表单&spm=1001.2101.3001.7020)元素的双向绑定
 
 7.`v-once`: 性能优化
 
